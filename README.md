@@ -2,7 +2,7 @@
 A simple bracket app using python and tkinter. 
 This app was produced for the KMSC LLP Cornhole Tournament. 
 
-There is a Mac App available in `mac_app`, with a Windows .exe coming soon.
+There is a Mac App available in `mac_build`, with a Windows .exe file in `windows_build`
 
 To run the app from the source code:
 1) Ensure you have python installed on your computer
