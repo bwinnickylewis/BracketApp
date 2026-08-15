@@ -70,15 +70,16 @@ class Team:
 
 
 class Tournament():
-    def __init__(self,name):
+    def __init__(self,name,bracket=False):
         self.name = name
-        self.num_rr_games = 0
         self.team_names = []
         self.teams = []
         self.point_dist = [2,0,1] # Default
         self.game_id = 1
         self.id_list = []
         self.num_knockout_teams = 8
+        self.bracket = bracket
+
     def add_team(self,team_name):
         team = Team(team_name)
         self.team_names.append(team_name)
@@ -197,25 +198,114 @@ class Tournament():
             if team_2 not in self.team_names:
                 self.add_team(team_2)
             self.add_game(team_1,team_2,team_1_score,team_2_score)
-    # def print_table(self):
-    #     points = np.array([self.get_points(team) for team in self.teams])
-    #     points_for = np.array([team.get_points_for() for team in self.teams])
-    #     points_against = np.array([team.get_points_against() for team in self.teams])
 
-    #     point_diff = np.array([team.get_point_diff() for team in self.teams])
-    #     records = np.array([team.get_record_list() for team in self.teams])
-    #     order = self.get_standings()
-    #     rank = np.arange(1,len(self.team_names)+1,1)
-    #     table = [[rank[i],self.team_names[order[i]],
-    #               points[order[i]],
-    #               np.sum(records[order[i]]),
-    #               records[order[i]][0],
-    #               records[order[i]][1],
-    #               records[order[i]][2],
-    #               points_for[order[i]],
-    #               points_against[order[i]],
-    #               point_diff[order[i]]] for i in range(len(order))]
-    #     print(tabulate(table, headers=['Rank', 'Team', 'Points','Games Played', 'Wins', 'Losses', 'Draws', 'Points For', 'Points Against', 'Point Diff']))
-    # def print_games(self):
-    #     print(tabulate(self.return_game_stats(),headers=['Game ID', 'Home Team', 'Home Team Score','Away Team', 'Away Team Score']))
+    def make_bracket(self,num_rounds,team_list=[]):
+        if len(team_list)==0:
+            team_list = self.get_standings()
+        try:
+            team_list = team_list[:2**num_rounds]
+        except:
+            print('There are not enough teams to produce this bracket')
+        if num_rounds>4:
+            print('Please select 4 or less rounds')
+        if num_rounds==4:
+            pairings = [[0,15],[7,8],[4,11],[3,12],[1,14],[6,9],[5,10],[2,13]]
+        if num_rounds==3:
+            pairings = [[0,7],[3,4],[1,6],[2,5]]
+        if num_rounds==2:
+            pairings = [[0,3],[1,2]]
+        if num_rounds==1:
+            pairings = [[1,2]]
+        return pairings
+        
+        
+class Bracket():
+    def __init__(self,name,num_rounds):
+            self.name = name
+            self.num_rounds = num_rounds
+            self.num_teams = 2**num_rounds
+            self.teams = [' ' for i in range(self.num_teams)]
+            self.game_id = 1
+            self.id_list = []
+            self.bracket_dict = {}
+    def add_team(self,team_name,rank):
+        if team_name in self.teams:
+            raise ValueError
+        else:
+            self.teams[rank-1] = team_name
+    def initialize_bracket(self):
+        self.bracket_dict['First'] = ' '
+        self.bracket_dict['Second'] = ' '
+        self.bracket_dict['Third'] = ' '
+
+        for i in range(self.num_rounds,0,-1):
+            for j in range(int(2**i/2)):
+                if i==self.num_rounds:
+                    self.bracket_dict[str(i)+'_'+str(j+1)] = [self.teams[j],self.teams[-(j+1)],[0,0]]
+                else:
+                    self.bracket_dict[str(i)+'_'+str(j+1)] = [' ',' ',[0,0]]
+        if self.num_rounds>1:
+            self.bracket_dict['1_2'] = [' ', ' ', [0,0]]
+
+    def get_rank(self,team_name):
+        rank = 0
+        for i in range(len(self.teams)):
+            if self.teams[i] == team_name:
+                rank = i+1
+        return int(rank)
+    def get_game_text(self,game_id):
+        game_info = self.bracket_dict[game_id]
+        text_1 = ' '
+        text_2 = ' '
+        if game_info[0] != text_1:
+            text_1 = f'{game_info[0]} ({self.get_rank(game_info[0])})'
+        if game_info[1] != text_2:
+                    text_2 = f'{game_info[1]} ({self.get_rank(game_info[1])})'
+        if game_info[2] == [0,0]:
+            return f'{text_1}\nvs\n{text_2}'
+        else: 
+            return f'{text_1} - {game_info[2][0]}\nvs\n{text_2} - {game_info[2][0]}'
+        
+    def add_bracket_game(self,game_id,score):
+        game_teams = [self.bracket_dict[game_id][0],self.bracket_dict[game_id][1]]
+        if ' ' in game_teams:
+            raise ValueError('Not enough teams have qualified')
+        else:
+            # print(game_teams)
+            # print(score)
+            # print(np.array(score)==np.max(score))
+            winning_team = game_teams[np.where(np.array(score)==np.max(score))[0][0]]
+            losing_team = game_teams[np.where(np.array(score)==np.min(score))[0][0]]
+
+            round,game = game_id.split('_')
+            round = int(round)
+            round_games = np.arange(2**(round-1))+1
+            game = int(game)
+            new_game = 0
+            self.bracket_dict[game_id] = [game_teams[0],game_teams[1],score]
+            top = False
+
+            if round != 1:
+                if game<=2**(round-1)/2:
+                    new_game = game
+                    top=True
+                else:
+                    new_game = round_games[-game]
+
+                new_game_id = str(int(round-1))+'_'+str(int(new_game))
+                if top:
+                    self.bracket_dict[new_game_id] = [winning_team,self.bracket_dict[new_game_id][1],[0,0]]
+                else:
+                    self.bracket_dict[new_game_id] = [self.bracket_dict[new_game_id][0],winning_team,[0,0]]
+                if round == 2:
+                    if top:
+                        self.bracket_dict['1_2'] = [losing_team,self.bracket_dict['1_2'][1],[0,0]]
+                    else:
+                        self.bracket_dict['1_2'] = [self.bracket_dict['1_2'][0],losing_team,[0,0]]
+            else:
+                if game == 1:
+                    self.bracket_dict['First'] = winning_team
+                    self.bracket_dict['Second'] = losing_team
+                if game == 2:
+                    self.bracket_dict['Third'] = winning_team
 
