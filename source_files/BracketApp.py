@@ -54,15 +54,25 @@ class StartPage(ttk.Frame):
         self.load_button = ttk.Button(self, text="Load Tournament", command=self.load_tournament)
         self.load_button.grid(column=0,row=3)
 
+        self.new_brack_button = ttk.Button(self, text="New Bracket", command=self.new_bracket)
+        self.new_brack_button.grid(column=0,row=4)
+
+        self.load_brack_button = ttk.Button(self, text="Load Bracket", command=self.load_tournament)
+        self.load_brack_button.grid(column=0,row=5)
+        
+
         self.empty = ttk.Label(self,text=" ",font=("Helvetica", 15))
-        self.empty.grid(column=0,row=5)
+        self.empty.grid(column=0,row=7)
 
         self.credit = ttk.Label(self,text="Created by Bennett Winnicky-Lewis, produced for KMSC Law LLP",font=("Helvetica", 15))
-        self.credit.grid(column=0,row=6)
+        self.credit.grid(column=0,row=8)
 
     def new_tournament(self):
         self.clear_frame()
         new_page = NewTournament(self.master)
+    def new_bracket(self):
+        self.clear_frame()
+        new_brack = NewBracket(self.master)
 
 
     def load_tournament(self):
@@ -72,7 +82,212 @@ class StartPage(ttk.Frame):
         for widget in self.winfo_children():
             widget.destroy()
 
-    
+class NewBracket(ttk.Frame):
+    def __init__(self,parent):
+        super().__init__(parent)
+        self.grid(column=0,row=0)
+        self.columnconfigure(0,weight=1)
+        self.columnconfigure(0,weight=1)
+
+        self.name_label = ttk.Label(self,text="Set Bracket Name",font=("Helvetica", 20))
+        self.name_label.configure(anchor="center")
+        self.name_label.grid(column=1,row=0)
+
+        self.name_entry = ttk.Entry(self,width = 15)
+        self.name_entry.grid(row=1,column=1,sticky='ew')
+
+        self.num_label = ttk.Label(self,text="Number of rounds\n(e.g. 1, 2, 3...)",font=("Helvetica", 20))
+        self.num_label.configure(anchor="center")
+        self.num_label.grid(column=1,row=3)
+
+        self.num_entry = ttk.Entry(self,width = 3)
+        self.num_entry.grid(row=4,column=1,sticky='ew')
+        # self.entry.rowconfigure(0,weight=1)
+
+        self.next_button = ttk.Button(self, text="Next", command=self.read_entry)
+        self.next_button.grid(column=1,row=5)
+
+        self.next_button.bind("<Return>",self.read_entry)
+
+        self.back_button = tk.Button(self,text="Back",command=self.go_back,font=("Helvetica",15))
+        self.back_button.grid(column=0,row=0,sticky='nw')
+        self.back_button.configure(anchor="nw")
+    def go_back(self):
+        self.clear_frame()
+        name_frame = StartPage(self.master)
+    def read_entry(self,_event=None):
+        # try:
+            name_text = self.name_entry.get()
+            num_rounds = int(self.num_entry.get())
+            if num_rounds < 1:
+                ValueError()
+            if name_text:
+                # self.name_entry.delete(0,tk.END)
+                self.clear_frame()
+                enter_team_page = EnterBracketTeams(self,name_text,num_rounds)
+        # except:
+        #     error_label = tk.Label(self,text="Please enter a valid number of rounds",font=("Helvetica", 12),foreground='red')
+        #     error_label.configure(anchor="center")
+        #     error_label.grid(column=1,row=2)
+            
+        #     self.after(2000, error_label.destroy)
+    def clear_frame(self):
+        for widget in self.winfo_children():
+            widget.destroy()
+
+
+class EnterBracketTeams(ttk.Frame):
+    def __init__(self,parent,name,num_rounds):
+        super().__init__(parent)
+        self.grid(column=0,row=0)
+
+        self.button_width=int(15*(4/num_rounds)+1)
+        self.button_height=int(3*(4/num_rounds)+1)
+        self.button_font_size = int(14*(4/num_rounds))
+
+        self.name = name
+        self.num_rounds = num_rounds
+        self.bracket = Bracket(self.name,self.num_rounds)
+
+        self.bracket.initialize_bracket()
+
+        self.max_col = 2*(num_rounds)-1
+        self.mid_col = int(self.max_col/2)+1
+
+        if self.num_rounds<3:
+            self.mid_rows=2
+            if self.num_rounds==1:
+                self.empty_1 = tk.Label(self,text=' ',width =self.button_width,height=self.button_height)
+                self.empty_1.grid(row=self.mid_rows+1,column=self.mid_col)
+                self.empty_2 = tk.Label(self,text=' ',width =self.button_width,height=self.button_height)
+                self.empty_2.grid(row=self.mid_rows+2,column=self.mid_col)
+        else:
+            self.mid_rows = self.bracket.round_rows[0][0]
+        buttons = self.create_buttons()
+
+        for i in range(self.max_col):
+            self.columnconfigure(i,weight=1)
+        for i in range(int(self.mid_rows*2)):
+            self.rowconfigure(i,weight=1)
+
+        # Need to make back buttons, reset buttons, and next bottons
+
+        next_butt  = tk.Button(self,text='Create Bracket',command=self.make_brack,width=self.button_width,height=self.button_height)
+        if num_rounds < 4:
+            next_butt.grid(row=self.max_col-1,column=self.mid_col+1)
+        else:
+            next_butt.grid(row=self.max_col-1,column=self.mid_col)
+
+    def create_buttons(self):
+        for key in self.bracket.bracket_dict.keys():
+            if '_'  in key:
+                row,col = self.bracket.return_game_pos(key)
+                button = AddBracketTeamButton(self,self.bracket,str(key))
+                button.grid(row=row,column=col,sticky='nsew')
+    def update_games(self):
+            for frame in self.winfo_children():
+                frame.destroy()
+            self.create_buttons()
+    def make_brack(self,):
+        
+        num_teams = 2**self.num_rounds
+        actual_teams = []
+        for team in self.bracket.teams:
+            if team != ' ':
+                actual_teams.append(team)
+        if num_teams!= len(actual_teams):
+            error_label = tk.Label(self,text="Not enough teams have been entered",font=("Helvetica", 12),foreground='red')
+            error_label.configure(anchor="center")
+            error_label.grid(column=self.mid_col,row=self.mid_rows)
+            self.after(2000, error_label.destroy)
+            self.update_games()
+        else:
+            # self.clear_rr()
+            self.bracket = CreateBracket(self.master,self.name,self.num_rounds,self.bracket.teams,from_tourn=False)
+
+    def clear_frame(self):
+        for widget in self.winfo_children():
+            widget.destroy()
+class AddBracketTeamButton(tk.Button):
+    def __init__(self,parent,bracket_object,game_id):
+        self.bracket_object = bracket_object
+        self.game_id = game_id
+        self.button_width=int(15*(4/parent.num_rounds)+1)
+        self.button_height=int(3*(4/parent.num_rounds)+1)
+        self.button_font_size = int(14*(4/parent.num_rounds))
+        super().__init__(parent,text=self.bracket_object.get_game_text(self.game_id,entering_teams=True),font=(font_style,self.button_font_size),command=lambda: self.bracket_game_popup(self.game_id),height=self.button_height,width=self.button_width)  
+
+
+        row,col = self.bracket_object.return_game_pos(self.game_id)
+        self.grid(row=row,column=col)
+
+    def bracket_game_popup(self,game_id):
+        if self.bracket_object.num_rounds != int(game_id.split('_')[0]):
+            error_label = tk.Label(self,text="Only able to add teams to\noutermost games",font=("Helvetica", 15),foreground='red')
+            error_label.configure(anchor="center")
+            error_label.grid(column=self.master.mid_col,row=self.master.mid_rows)
+            self.after(2000, error_label.destroy) 
+            self.update_games()
+
+        else:
+            try:
+                team_1 = self.bracket_object.bracket_dict[game_id][0]
+                team_2 = self.bracket_object.bracket_dict[game_id][1]
+
+                self.rank_1 = int(game_id.split('_')[1])
+                self.rank_2 = int(2**self.bracket_object.num_rounds - self.rank_1)+1
+
+                fonts = (font_style, 15)
+
+                self.popup = tk.Toplevel()
+                self.popup.title("Add Matchup")
+                
+                self.pop_frame = ttk.Frame(self.popup)
+                self.pop_frame.grid(row=0,column=0)
+                self.pop_frame.columnconfigure(0,weight=1)
+                self.pop_frame.rowconfigure(0,weight=1)
+                ttk.Label(self.pop_frame, text = f"Add Matchup to {self.bracket_object.name}", 
+                #   background = 'green', foreground ="white", 
+                font = ("Times New Roman", 20)).grid(row = 0, column = 2)
+                # Labels
+                label_1 = ttk.Label(self.pop_frame, text = "Enter Team Name 1",
+                        font = fonts).grid(column = 0,
+                        row = 2, padx = 10, pady = 5)
+                label_2 = ttk.Label(self.pop_frame, text = "Enter Team Name 2",
+                        font = fonts).grid(column = 3,
+                        row = 2, padx = 10, pady = 5)
+
+
+                # Creating score field 1
+                self.entry_1 = tk.Entry(self.pop_frame,width=10)
+                self.entry_1.grid(row=3,column=0)
+                # Creating score field 2
+                self.entry_2 = tk.Entry(self.pop_frame,width=10)
+                self.entry_2.grid(row=3,column=3)
+                # Add Game button
+                if self.entry_1.get() == None or self.entry_2.get() == None:
+                    error_label = tk.Label(self.pop_frame,text="Please Enter Two Teams",font=("Helvetica", 15),foreground='red')
+                    error_label.configure(anchor="center")
+                    error_label.grid(column=3,row=2)
+                    self.after(2000, error_label.destroy) 
+                    self.update_games()
+                self.add_button = tk.Button(self.pop_frame,text='Add Matchup',command=lambda: self.add_matchup(),font=fonts)
+                self.add_button.grid(row=4,column=2)            
+            except:
+                error_label = tk.Label(self,text="Not enough teams have \nqualified for this game",font=("Helvetica", 15),foreground='red')
+                error_label.configure(anchor="center")
+                error_label.grid(column=self.master.mid_col,row=self.master.mid_rows)
+                self.after(2000, error_label.destroy) 
+                self.update_games()
+    def add_matchup(self):
+        self.bracket_object.add_team(str(self.entry_1.get()),int(self.rank_1))
+        self.bracket_object.add_team(str(self.entry_2.get()),int(self.rank_2))
+        self.popup.destroy()
+        self.bracket_object.initialize_bracket()
+        self.master.update_games()
+        
+        
+        
 
 class NewTournament(ttk.Frame):
     def __init__(self,parent):
@@ -513,7 +728,6 @@ class RoundRobin(ttk.Frame):
         initialdir='./',
         filetypes=filetypes)
         if filename:
-            print(filename)
             # error_label = ttk.Label(self.button_frame,text='PLEASE SAVE AS .CSV',font=("Helvetica", 12),foreground='red')
             # error_label.configure(anchor="center")
             # error_label.grid(column=0,row=3)
@@ -616,18 +830,25 @@ class RoundRobin(ttk.Frame):
 
         label = tk.Label(self.pop_frame_1,text='Select the number\nof rounds to create',font=('Helvetica',20))
         label.grid(row=0,column=2)
-        
-        button1 = tk.Button(self.pop_frame_2,text='1',font=('Helvetica',15),command=self.make_1)
-        button1.grid(row=1,column=0)
+        max_rounds = 0
+        n_teams = len(self.master.tournament.teams)
+        for i in range(n_teams):
+            if 2**i - n_teams <=0:
+                max_rounds = i
 
-        button2 = tk.Button(self.pop_frame_2,text='2',font=('Helvetica',15),command=self.make_2)
-        button2.grid(row=1,column=1)
+        # Creating dropdown 2
+        n_options = [i+1 for i in range(max_rounds) ]
+        self.n_rounds = tk.IntVar()
+        self.rounds_choice = ttk.Combobox(self.pop_frame_2, width = 10, textvariable = self.n_rounds)
+        self.rounds_choice['values'] = n_options
+        self.rounds_choice.grid(column = 0, row = 2)
+        self.rounds_choice.columnconfigure(4,weight=1)
+        self.rounds_choice.current()
 
-        button3 = tk.Button(self.pop_frame_2,text='3',font=('Helvetica',15),command=self.make_3)
-        button3.grid(row=1,column=2)
+        # Add Game button
+        self.add_button = ttk.Button(self.pop_frame_2,text='Create Bracket',command= lambda: self.make_brack(int(self.rounds_choice.get())))
+        self.add_button.grid(row=3,column=0)
 
-        button4 = tk.Button(self.pop_frame_2,text='4',font=('Helvetica',15),command=self.make_4)
-        button4.grid(row=1,column=3)
 
 
     def make_1(self):
@@ -647,63 +868,143 @@ class RoundRobin(ttk.Frame):
             error_label.grid(column=2,row=2)
             self.pop_frame_2.after(2000, error_label.destroy)
         else:
-            self.clear_rr()
-            self.bracket = BracketFrame(self.master,self.master.tournament.name,num_rounds,self.master.tournament.get_standings()[:int(2**num_rounds)])
+            # self.clear_rr()
+            order = self.master.tournament.get_standings()
+            team_names = [self.master.tournament.team_names[order[i]] for i in range(num_teams)]
+            self.bracket = CreateBracket(self.master,self.master.tournament.name,num_rounds,team_names,from_tourn=True)
+            self.popup.destroy()
+
 
     def clear_rr(self):
         for widget in self.master.winfo_children():
             widget.destroy()
 
 
-class BracketFrame(ttk.Frame):
-    def __init__(self,parent,name,num_rounds,teams):
-        super().__init__(parent)
-        vert_size = int(200*(1+num_rounds*0.5))
-        horiz_size = int((400)*(1+num_rounds*0.5))
-        button_width=15
-        button_height=3
+# Make the bracket its own pop-up?
+# Then you can just exit the pop-up to go back to the tournament
 
-        self.master.geometry(f"{horiz_size}x{vert_size}")
+class CreateBracket(ttk.Frame):
+    def __init__(self,parent,name,num_rounds,teams,from_tourn=False):
+
+        self.brack_popup = tk.Toplevel()
+        self.brack_popup.title("Knockout")
+
+
+        super().__init__(parent)
+        vert_size = int(600)
+        horiz_size = int(1200)
+        self.brack_popup.geometry(f"{horiz_size}x{vert_size}")
         self.name = name
         self.num_rounds = num_rounds
         self.teams = teams
+        self.from_tourn = from_tourn
+
+        # Header section
+        self.max_col = 2*(num_rounds)-1
+        self.header_frame = ttk.Frame(self.brack_popup)
+        self.header_frame.grid(column=0,row=0,sticky='ew')
+        for i in range(1,self.max_col+1):
+            t = tk.Label(self.header_frame,text = ' ', font = (font_style,10),width=15)
+            t.grid(row=0,column = i)
+        if from_tourn:
+            back_button = tk.Button(self.header_frame,text='Back to Tournament',font=(font_style,12),command=self.back_to_rr)
+            back_button.grid(row=0,column=0)
+            title_label = ttk.Label(self.header_frame,text=name+"\nKnockout Stage",font=(font_style,20),anchor="center")
+            title_label.grid(row=1,column=int(self.max_col/2)+1)
+        else:
+            title_label = ttk.Label(self.header_frame,text=name,font=(font_style,20))
+            title_label.grid(row=1,column=int(self.max_col/2)+1)
+            exit_button = tk.Button(self.header_frame,text='Exit',font=(font_style,12),command=self.exit_popup)
+            exit_button.grid(row=0,column=0)
+
+        reset_button = tk.Button(self.header_frame,text='Reset', font=(font_style,12),command=self.reset)
+        reset_button.grid(row=1,column=0)
+
+
+        self.rowconfigure(0,weight=1,)
+        self.columnconfigure(0,weight=1)
+
+        self.bracket_frame = BracketFrame(self.brack_popup,self.name,self.num_rounds,self.teams)
+        self.bracket_frame.grid(column=0,row=1,sticky='ew')
+        self.columnconfigure(0,weight=3)
+        self.rowconfigure(1,weight=3)
+    def back_to_rr(self):
+        self.exit_popup()
+    def clear_bracket(self):
+        for frame in self.brack_popup.winfo_children():
+            frame.destroy()
+    def reset(self):
+        self.bracket_frame.clear_bracket()
+        self.bracket_frame.reset()
+    def exit_popup(self):
+        for widget in self.brack_popup.winfo_children():
+            widget.destroy()
+        self.brack_popup.destroy()
+
+
+class BracketFrame(ttk.Frame):
+    def __init__(self,parent,name,num_rounds,teams):
+        super().__init__(parent)
+        self.button_width=int(15*(4/num_rounds)+1)
+        self.button_height=int(3*(4/num_rounds)+1)
+        self.button_font_size = int(14*(4/num_rounds))
+        
+        self.num_rounds = num_rounds
+        self.teams = teams
+        self.name = name
+        self.button_dict = {}
         self.bracket = Bracket(self.name,self.num_rounds)
         self.ranks = [i+1 for i in range(2**num_rounds)]
         for i in self.ranks:
             self.bracket.add_team(teams[i-1],i)
-        self.bracket.initialize_bracket
+        self.bracket.initialize_bracket()
 
 
         self.frame_1 = ttk.Frame(parent)
         self.frame_1.grid(row=0,column=0)
 
-        self.header = tk.Label(self.frame_1,text=f'Knockout Rounds for {self.master.tournament.name}',font=('Helvetica',25))
-        self.header.grid(row=0,column=1)
-        self.empty = tk.Label(self.frame_1,text='')
-        self.empty.grid(row=0,column=2)
-        self.back_button = tk.Button(self.frame_1,text='Back to Round Robin',command=self.back_to_rr,font=('Helvetica',15))
-        self.back_button.grid(row=0,column=0)
-        self.back_button = tk.Button(self.frame_1,text='Reset Bracket',command=self.reset,font=('Helvetica',15))
-        self.back_button.grid(row=1,column=0)
-        self.grid(column=0,row=1)
-         
         self.max_col = 2*(num_rounds)-1
-        for i in range(self.max_col):
-            self.columnconfigure(i,weight=1)
-            self.rowconfigure(i,weight=1)
 
+        empty_nw = tk.Label(self,text = ' ').grid(row=0,column=0)
+        empty_ne = tk.Label(self,text = ' ').grid(row=0,column=self.max_col)
+        empty_sw = tk.Label(self,text = ' ').grid(row=self.max_col,column=0)
+        empty_ne = tk.Label(self,text = ' ').grid(row=self.max_col,column=self.max_col)
+
+        
         self.mid_col = int(self.max_col/2)+1
+
+
         if self.num_rounds<3:
             self.mid_rows=2
             if self.num_rounds==1:
-                self.empty_1 = tk.Label(self,text=' ',width =button_width,height=button_height)
+                self.empty_1 = tk.Label(self,text=' ',width =self.button_width,height=self.button_height)
                 self.empty_1.grid(row=self.mid_rows+1,column=self.mid_col)
-                self.empty_2 = tk.Label(self,text=' ',width =button_width,height=button_height)
+                self.empty_2 = tk.Label(self,text=' ',width =self.button_width,height=self.button_height)
                 self.empty_2.grid(row=self.mid_rows+2,column=self.mid_col)
         else:
-            self.mid_rows = int(self.max_col/2)+1
-    def back_to_rr(self):
+            self.mid_rows = self.bracket.round_rows[0][0]
+        buttons = self.create_buttons()
+
+        for i in range(self.max_col):
+            self.columnconfigure(i,weight=1)
+        for i in range(int(self.mid_rows*2)):
+            self.rowconfigure(i,weight=1)
         
+    def create_buttons(self):
+        for key in self.bracket.bracket_dict.keys():
+       
+            if '_' not in key:
+                label = BracketLabel(self,self.bracket,key)
+                row,col = self.bracket.return_game_pos(key)
+                label.grid(row=row,column=col,sticky='nsew')
+            else:
+                # self.button_dict[key] = BracketButton(self,self.bracket,key)
+                button = BracketButton(self,self.bracket,key)
+                row,col = self.bracket.return_game_pos(key)
+                button.grid(row=row,column=col,sticky='nsew')
+            # print(key,row,col)
+                
+    def back_to_rr(self):
         self.clear_bracket()
         rr=RoundRobin(self.master)
     def reset(self):
@@ -712,8 +1013,172 @@ class BracketFrame(ttk.Frame):
     def clear_bracket(self):
         for frame in self.master.winfo_children():
             frame.destroy()
+    def reset_bracket(self):
+        # inter_brack = self.bracket.initialize_bracket()
+        # self.bracket = inter_brack
+        for frame in self.winfo_children():
+            frame.destroy()
+        self.create_buttons()
+    def update_games(self):
+        for frame in self.winfo_children():
+            frame.destroy()
+        # self.__init__(self.master,self.name,self.num_rounds,self.teams)
+        self.create_buttons()
+
+# ### SCROLLABLE FRAME
+# class VerticalScrolledFrame(ttk.Frame):
+#     """A pure Tkinter scrollable frame that actually works!
+#     * Use the 'interior' attribute to place widgets inside the scrollable frame.
+#     * Construct and pack/place/grid normally.
+#     * This frame only allows vertical scrolling.
+#     """
+#     def __init__(self, parent, *args, **kw):
+#         ttk.Frame.__init__(self, parent, *args, **kw)
+
+#         # Create a canvas object and a vertical scrollbar for scrolling it.
+#         vscrollbar = ttk.Scrollbar(self, orient=VERTICAL)
+#         vscrollbar.pack(fill=Y, side=RIGHT, expand=FALSE)
+#         canvas = tk.Canvas(self, bd=0, highlightthickness=0,
+#                            yscrollcommand=vscrollbar.set)
+#         canvas.pack(side=LEFT, fill=BOTH, expand=TRUE)
+#         vscrollbar.config(command=canvas.yview)
+
+#         # Reset the view
+#         canvas.xview_moveto(0)
+#         canvas.yview_moveto(0)
+
+#         # Create a frame inside the canvas which will be scrolled with it.
+#         self.interior = interior = ttk.Frame(canvas)
+#         interior_id = canvas.create_window(0, 0, window=interior,
+#                                            anchor=NW)
+
+#         # Track changes to the canvas and frame width and sync them,
+#         # also updating the scrollbar.
+#         def _configure_interior(event):
+#             # Update the scrollbars to match the size of the inner frame.
+#             size = (interior.winfo_reqwidth(), interior.winfo_reqheight())
+#             canvas.config(scrollregion="0 0 %s %s" % size)
+#             if interior.winfo_reqwidth() != canvas.winfo_width():
+#                 # Update the canvas's width to fit the inner frame.
+#                 canvas.config(width=interior.winfo_reqwidth())
+#         interior.bind('<Configure>', _configure_interior)
+
+#         def _configure_canvas(event):
+#             if interior.winfo_reqwidth() != canvas.winfo_width():
+#                 # Update the inner frame's width to fill the canvas.
+#                 canvas.itemconfigure(interior_id, width=canvas.winfo_width())
+#         canvas.bind('<Configure>', _configure_canvas)
 
 
+# if __name__ == "__main__":
+
+#     class SampleApp(tk.Tk):
+#         def __init__(self, *args, **kwargs):
+#             root = tk.Tk.__init__(self, *args, **kwargs)
+
+#             self.frame = VerticalScrolledFrame(root)
+#             self.frame.pack()
+#             self.label = ttk.Label(self, text="Shrink the window to activate the scrollbar.")
+#             self.label.pack()
+#             buttons = []
+#             for i in range(10):
+#                 buttons.append(ttk.Button(self.frame.interior, text="Button " + str(i)))
+#                 buttons[-1].pack()
+
+#     app = SampleApp()
+#     app.mainloop()
+
+### END OF SCROLLABLE ELEMENT
+
+class BracketLabel(ttk.Label):
+    def __init__(self,parent,bracket_object,game_id):
+        self.bracket_object = bracket_object
+        self.game_id = game_id
+        super().__init__(parent,text=self.bracket_object.get_game_text(self.game_id),font=(font_style,parent.button_font_size),anchor="center")  
+        row,col = self.bracket_object.return_game_pos(self.game_id)
+
+
+class BracketButton(tk.Button):
+    def __init__(self,parent,bracket_object,game_id):
+        self.bracket_object = bracket_object
+        self.game_id = game_id
+        super().__init__(parent,text=self.bracket_object.get_game_text(self.game_id),font=(font_style,parent.button_font_size),command=lambda: self.bracket_game_popup(self.game_id),height=parent.button_height,width=parent.button_width)  
+
+        row,col = self.bracket_object.return_game_pos(self.game_id)
+
+
+    def bracket_game_popup(self,game_id):
+        try:
+            team_1 = self.bracket_object.bracket_dict[game_id][0]
+            rank_1 = self.bracket_object.get_rank(team_1)
+            team_2 = self.bracket_object.bracket_dict[game_id][1]
+            rank_2 = self.bracket_object.get_rank(team_2)
+            if team_1 == ' ' or team_2 == ' ':
+                error_label = tk.Label(self.master,text="Not enough teams have \nqualified for this game",font=("Helvetica", 15),foreground='red')
+                error_label.configure(anchor="center")
+                error_label.grid(column=self.master.mid_col,row=self.master.mid_rows)
+                self.after(2000, error_label.destroy)
+            else:
+                fonts = (font_style, 15)
+
+                self.popup = tk.Toplevel()
+                self.popup.title("Knockout Game")
+                
+                self.pop_frame = ttk.Frame(self.popup)
+                self.pop_frame.grid(row=0,column=0)
+                self.pop_frame.columnconfigure(0,weight=1)
+                self.pop_frame.rowconfigure(0,weight=1)
+                ttk.Label(self.pop_frame, text = f"Add Knockout Game to {self.bracket_object.name}", 
+                #   background = 'green', foreground ="white", 
+                font = ("Times New Roman", 20)).grid(row = 0, column = 2)
+                # Labels
+                label_1 = ttk.Label(self.pop_frame, text = str(team_1)+' ('+str(rank_1)+')',
+                        font = fonts).grid(column = 0,
+                        row = 2, padx = 10, pady = 5)
+                label_2 = ttk.Label(self.pop_frame, text = team_2+' ('+str(rank_2)+')',
+                        font = fonts).grid(column = 3,
+                        row = 2, padx = 10, pady = 5)
+                label_1_score = ttk.Label(self.pop_frame, text = "Score:",
+                        font = fonts).grid(column = 0,
+                        row = 3, padx = 10, pady = 5)
+                label_2_score = ttk.Label(self.pop_frame, text = "Score:",
+                        font = fonts).grid(column = 3,
+                        row = 3, padx = 10, pady = 5)
+
+                # Creating score field 1
+                self.entry_1 = tk.Entry(self.pop_frame,width=3)
+                self.entry_1.grid(row=3,column=1)
+                # Creating score field 2
+                self.entry_2 = tk.Entry(self.pop_frame,width=3)
+                self.entry_2.grid(row=3,column=4)
+                # Add Game button
+                self.add_button = tk.Button(self.pop_frame,text='Add Game',command=lambda: self.add_game(game_id),font=fonts)
+                self.add_button.grid(row=4,column=2)            
+        except:
+            error_label = tk.Label(self,text="Not enough teams have \nqualified for this game",font=("Helvetica", 15),foreground='red')
+            error_label.configure(anchor="center")
+            error_label.grid(column=self.master.mid_col,row=self.master.mid_rows)
+            self.after(2000, error_label.destroy) 
+    def add_game(self,game_id):
+        try:
+            score = [int(self.entry_1.get()),int(self.entry_2.get())]
+            if score[0]==score[1]:
+                error_label = tk.Label(self.pop_frame,text="NO TIES ALLOWED",font=("Helvetica", 12),foreground='red')
+                error_label.configure(anchor="center")
+                error_label.grid(column=2,row=2)
+                self.master.update_games()
+                self.pop_frame.after(2000, error_label.destroy)
+            else:
+                self.bracket_object.add_bracket_game(game_id,score)
+                self.popup.destroy()
+                self.master.update_games()
+        except:
+            error_label = tk.Label(self.pop_frame,text="PLEASE INSERT VALID SCORES",font=("Helvetica", 12),foreground='red')
+            error_label.configure(anchor="center")
+            error_label.grid(column=2,row=2)
+            self.master.update_games()
+            self.pop_frame.after(2000, error_label.destroy)
+            
 
 
 class BracketGame(ttk.Frame):
